@@ -4,198 +4,393 @@
 #include <limits.h>
 #include <algorithm>
 #include <vector>
+#include <queue>
 using namespace std;
-
+struct punto{
+    string nombre;
+    int x;
+    int y;
+};
+void llenar(punto*media, string n_1, int x_1, int y_1){
+    media->nombre = n_1;
+    media->x = x_1;
+    media->y = y_1;
+}
+bool comparar(const pair<float,punto> &a, const pair<float,punto> &b){
+    return a.first < b.first;
+}
 class m_tree_nodo
 {
 private:
-    float *centro;
+    punto*centro;
     float radio;
+    int letra;
     m_tree_nodo *padre;
-    m_tree_nodo *raiz;
-    vector<pair<float,float>> valores;
+    vector<punto> valores;
     vector<m_tree_nodo*> hijos;
 public:
     m_tree_nodo();
-    void anadir(float, float, int);
-    float distancia(float, float, m_tree_nodo*);
-    void particion(m_tree_nodo*,m_tree_nodo*,m_tree_nodo*);
-    void division(m_tree_nodo*,int);
+    float distancia(punto*, punto*);
+    float distancia(vector<punto*>, vector<punto*>);
+    void anadir(punto*, int);
     void actualizar(m_tree_nodo*,m_tree_nodo*);
-    vector<pair<int,int>> dist_min_into(m_tree_nodo*);
+    void division(m_tree_nodo*,int);
+    void particion(m_tree_nodo*,m_tree_nodo*,m_tree_nodo*);
+    void vecinos_mas_cercanos(punto*, float, int);
+    friend ostream& operator << (ostream &o,const m_tree_nodo &p);
     ~m_tree_nodo();
 };
-
 m_tree_nodo::m_tree_nodo()
 {
-    centro=nullptr;
+    centro = nullptr;
     radio = 0;
-    raiz = nullptr;
+    letra = 0;
     padre = nullptr;
 }
-void m_tree_nodo::anadir(float x_new, float y_new, int n_maximo){
-    m_tree_nodo * nuevo = this->raiz;
-    if(this->raiz == nullptr)
-        nuevo = this;
-    while (!nuevo->hijos.empty()){
-        vector<pair<int,int>> valores;
-        vector<pair<int,int>> valores_2;
-        for (int i = 0; i < nuevo->hijos.size(); i++){
-            float dist = this->distancia(x_new,y_new,nuevo->hijos[i]);
-            if(nuevo->hijos[i]->radio >= dist){
-                valores.push_back({dist, i});
-            }
-            valores_2.push_back({dist - nuevo->hijos[i]->radio, i});
-        }
-        if(!valores.empty()){
-            sort(valores.begin(),valores.end());
-            int indice = valores[0].second;
-            nuevo = nuevo->hijos[indice];
-        }
-        else{
-            sort(valores_2.begin(),valores_2.end());
-            int indice = valores_2[0].second;
-            nuevo = nuevo->hijos[indice];
-        }
-    }
-    nuevo->valores.push_back({x_new,y_new});
-    if(nuevo->valores.size() > n_maximo){
-        this->division(nuevo,n_maximo);
-    }
-    else{
-        this->actualizar(nuevo,nullptr);
-    }
-}
-float m_tree_nodo::distancia(float x, float y, m_tree_nodo*N){
-    float dis_x = (N->centro[0] - x);
-    float dis_y = (N->centro[1] - y);
+float m_tree_nodo::distancia(punto* a, punto* b){
+    float dis_x = (a->x - b->x);
+    float dis_y = (a->y - b->y);
     return  (dis_x * dis_x + dis_y * dis_y);
 }
-void m_tree_nodo::particion(m_tree_nodo*N,m_tree_nodo*N_1,m_tree_nodo*N_2){
-    N_1 = new m_tree_nodo();
-    N_2 = new m_tree_nodo();
-    if(N->hijos.empty()){
-        vector<pair<int,int>> menor_dist = this->dist_min_into(N);
-        bool visitado[N->hijos.size()]{false};
-        int medio = N->hijos.size() /2;
-        int cont = 0;
-        for (auto i:menor_dist){
-            if(cont<medio){
-                if(!visitado[i.first]){
-                    N_1->valores.push_back(i.first);
-                }
-                if(!visitado[i.second]){
-                    N_1->valores.push_back(i.second);
+float m_tree_nodo::distancia(vector<punto*> a, vector<punto*> b){
+    int i_1=0;
+    int j_1=0;
+    float maxima_distancia = -1;
+    if(a.size() > 1){
+        for(int i=0; i< a.size(); i++){
+            for (int j = i+1; j < a.size(); j++){
+                float dist = this->distancia((a[i]),(a[j]));
+                if(maxima_distancia == -1 || dist > maxima_distancia){
+                    maxima_distancia = dist;
+                    i_1 = i;
+                    j_1 = j;
                 }
             }
-            else{
-                if(!visitado[i.first]){
-                    N_2->valores.push_back(i.first);
-                }
-                if(!visitado[i.second]){
-                    N_2->valores.push_back(i.second);
-                }
-            }
-            cont++;
         }
     }
-}
-void m_tree_nodo::division(m_tree_nodo*N, int n_maximo){
-    m_tree_nodo* N_padre;
-    if(N != this->raiz){
-        N_padre = N->padre;
+    int i_2=0;
+    int j_2=0;
+    if(b.size() > 1){
+        maxima_distancia = -1;
+        for(int i=0; i< a.size(); i++){
+            for (int j = i+1; j < a.size(); j++){
+                float dist = this->distancia((a[i]),(a[j]));
+                if(maxima_distancia == -1 || dist > maxima_distancia){
+                    maxima_distancia = dist;
+                    i_2 = i;
+                    j_2 = j;
+                }
+            }
+        }
     }
-    m_tree_nodo* N_1;
-    m_tree_nodo* N_2;
-    particion(N,N_1,N_2);
-    if(N == this->raiz){
-        m_tree_nodo* N_raiz = new m_tree_nodo();
-        this->raiz = N_raiz;
-        N_1->padre = N_raiz;
-        N_2->padre = N_raiz;
-        N_raiz->hijos.push_back(N_1);
-        N_raiz->actualizar(N_raiz,N_1);
-        N_raiz->hijos.push_back(N_2);
-        N_raiz->actualizar(N_raiz,N_2);
+    float dis_x = (((a[i_1]->x + a[j_1]->x)/2) - ((a[i_2]->x + a[j_2]->x)/2));
+    float dis_y = (((a[i_1]->y + a[j_1]->y)/2) - ((a[i_2]->y + a[j_2]->y)/2));
+    return  (dis_x * dis_x + dis_y * dis_y);
+}
+void m_tree_nodo::anadir(punto* nuevo_punto, int n_maximo){
+    m_tree_nodo * nuevo = this;
+    while (!nuevo->hijos.empty()){
+        int minima_distancia = -1;
+        int minimo_indice = -1;
+        for (int i = 0; i < nuevo->hijos.size(); i++){
+            float dist = this->distancia(nuevo_punto,nuevo->hijos[i]->centro);
+            if(minimo_indice == -1 || dist < minima_distancia){
+                minima_distancia = dist;
+                minimo_indice = i;
+            }
+        }
+        nuevo = nuevo->hijos[minimo_indice];
+    }
+    nuevo->valores.push_back(*nuevo_punto);
+    if(nuevo->valores.size() <= n_maximo){
+        this->actualizar(nuevo,nullptr);
     }
     else{
-        m_tree_nodo* morir;
-        morir = N;
-        N = N_1;
-        delete morir;
-        N_1->padre = N_padre;
-        this->actualizar(N_padre,N_1);
-        N_padre->hijos.push_back(N_2);
-        N_2->padre = N_padre;
-        if(N->hijos.size() > n_maximo){
-            this->division(N_padre, n_maximo);
+        this->division(nuevo,n_maximo);
+    }
+}
+void m_tree_nodo::actualizar(m_tree_nodo*nuevo, m_tree_nodo*hijo){
+    m_tree_nodo * base = nuevo;
+    while (base!=nullptr){
+        if(hijo == nullptr){
+            int ultimo = base->valores.size() - 1;
+            if(base->centro == nullptr){
+                base->centro = new punto();
+                base->centro->nombre = char(this->letra + 65);
+                this->letra++;
+                base->centro->x = base->valores[ultimo].x;
+                base->centro->y = base->valores[ultimo].y;
+                break;
+            }
+            float dist = this->distancia(&(base->valores[ultimo]),base->centro);
+            if(dist > base->radio){
+                float nuevo_diametro = dist + base->radio;
+                float nuevo_radio = nuevo_diametro/2;
+                float dist_x = base->centro->x - base->valores[ultimo].x;
+                float dist_y = base->centro->x - base->valores[ultimo].y;
+                float rad_limit_x = nuevo_diametro*dist/dist_x;
+                float rad_limit_y = nuevo_diametro*dist/dist_y;
+                float x_rad = base->valores[ultimo].x + rad_limit_x;
+                float y_rad = base->valores[ultimo].y + rad_limit_y;
+                base->centro->x = (x_rad + base->valores[ultimo].x)/2;
+                base->centro->y = (y_rad + base->valores[ultimo].y)/2;
+                base->radio = nuevo_diametro/2;
+                hijo = base;
+                base = base->padre;
+            }
+            else{
+                break;
+            }
         }
         else{
-            this->actualizar(N_padre,N_2);
+            if(base->centro == nullptr){
+                base->centro = new punto();
+                base->centro->nombre = char(this->letra + 65);
+                this->letra++;
+                base->centro->x = hijo->centro->x;
+                base->centro->y = hijo->centro->y;
+                base->radio = hijo->radio;
+                break;
+            }
+            float dist = this->distancia(hijo->centro,base->centro);
+            if((dist + hijo->radio) > base->radio){
+                float nuevo_diametro_1 = dist + base->radio;
+                float dist_x = base->centro->x - hijo->centro->x;
+                float dist_y = base->centro->x - hijo->centro->y;
+                float rad_limit_x = nuevo_diametro_1*dist/dist_x;
+                float rad_limit_y = nuevo_diametro_1*dist/dist_y;
+                float x_rad_1 = hijo->centro->x + rad_limit_x;
+                float y_rad_1 = hijo->centro->y + rad_limit_y;
+
+                float nuevo_diametro_2 = dist + hijo->radio;
+                dist_x = hijo->centro->x - base->centro->x;
+                dist_y = hijo->centro->x - base->centro->y;
+                rad_limit_x = nuevo_diametro_2*dist/dist_x;
+                rad_limit_y = nuevo_diametro_2*dist/dist_y;
+                float x_rad_2 = base->centro->x + rad_limit_x;
+                float y_rad_2 = base->centro->y + rad_limit_y;
+
+                base->centro->x = (x_rad_1 + x_rad_2)/2;
+                base->centro->y = (y_rad_1 + y_rad_2)/2;
+                base->radio = (dist + hijo->radio + base->radio)/2;
+                hijo = base;
+                base = base->padre;
+            }
+            else{
+                break;
+            }
         }
     }
 }
-vector<pair<int,int>> m_tree_nodo::dist_min_into(m_tree_nodo*N){
-    vector<pair<int,int>> resul;
-    vector<pair<int,pair<int,int>>> resul_2;
-    for (int i = 0; i < N->valores.size(); i++){
-        for (int j = i+1; j < N->valores.size(); j++){
-            float dis_x = (N->valores[i].first - N->valores[j].first);
-            float dis_y = (N->valores[i].second - N->valores[j].second);
-            float resul = (dis_x * dis_x + dis_y * dis_y);
-            resul_2.push_back({resul,{i,j}});
-        }
-    }
-    sort(resul_2.begin(),resul_2.end());
-    for (auto i:resul_2){
-        resul.push_back(i.second);
-    }
-    return resul;
-}
-void m_tree_nodo::actualizar(m_tree_nodo*N,m_tree_nodo*P = nullptr){
-    while (1){
-        if(N->centro == nullptr){
-            N->centro = new float[2];
-            N->centro[0] = N->valores[0].first;
-            N->centro[1] = N->valores[0].second;
-        }
-        if(P==nullptr){
-            auto j = N->valores.end();
-            j--;
-            float dist = this->distancia(j->first,j->second,N);
-            if(dist > N->radio){
-                float nuevo_diametro = dist + N->radio;
-                float dis_y = N->centro[1] - j->second;
-                float dis_x = N->centro[0] - j->first;
-                float dis_x_rad = dis_x*nuevo_diametro/dist;
-                float dis_y_rad = dis_y*nuevo_diametro/dist;
-                N->centro[0]-= (dis_x_rad - dis_x);
-                N->centro[1]-= (dis_y_rad - dis_y);
-                N->radio = nuevo_diametro/2;
+void m_tree_nodo::division(m_tree_nodo*nuevo, int n_maximo){
+    m_tree_nodo * dividido = nuevo;
+    while(dividido != nullptr){
+        m_tree_nodo* part1;
+        m_tree_nodo* part2;
+        part1 = new m_tree_nodo();
+        part2 = new m_tree_nodo();
+        this->particion(dividido,part1,part2);
+        if(dividido->padre == nullptr){
+            delete dividido->centro;
+            dividido->centro = nullptr;
+            if(dividido->hijos.empty()){
+                dividido->valores.clear();
             }
-            return;
+            else{
+                dividido->hijos.clear();
+            }
+            dividido->hijos.push_back(part1);
+            part1->padre = dividido;
+            this->actualizar(dividido,part1);
+            dividido->hijos.push_back(part2);
+            part2->padre = dividido;
+            this->actualizar(dividido,part2);
+            break;
         }
         else{
-            float dist = this->distancia(P->centro[0],P->centro[1],N);
-            if((dist + P->radio) > N->radio){
-                float nuevo_diametro = dist + P->radio + N->radio;
-                float dis_y = N->centro[1] - P->centro[1];
-                float dis_x = N->centro[0] - P->centro[0];
-                float dis_x_rad = dis_x * N->radio/dist;
-                float dis_y_rad = dis_y * N->radio/dist;
-                float x4 = dis_x_rad + N->centro[0];
-                float y4 = dis_y_rad + N->centro[1];
-                dis_x_rad = dis_x * (dist + P->radio)/dist;
-                dis_y_rad = dis_y * (dist + P->radio)/dist;
-                float x3 = dis_x_rad - N->centro[0];
-                float y3 = dis_y_rad - N->centro[1];
-                N->centro[0] = (x4 - x3)/2;
-                N->centro[1] = (y4 - y3)/2;
-                N->radio = nuevo_diametro/2;
+            m_tree_nodo* pad = dividido->padre;
+            for (int i = 0; i < pad->hijos.size(); i++){
+                if(pad->hijos[i] == dividido){
+                    pad->hijos.erase(pad->hijos.begin()+i);
+                    break;
+                }
+            }
+            delete dividido;
+            pad->hijos.push_back(part1);
+            part1->padre = pad;
+            this->actualizar(pad,part1);
+            pad->hijos.push_back(part2);
+            if(pad->hijos.size() <= n_maximo){
+                part2->padre = pad;
+                this->actualizar(pad,part2);
+                dividido = nullptr;
+            }
+            else{
+                dividido = pad;
             }
         }
-        if(N->padre != nullptr)
-            this->actualizar(N->padre,N);
+    }
+}
+void m_tree_nodo::particion(m_tree_nodo*dividido,m_tree_nodo*part1,m_tree_nodo*part2){
+    vector<vector<punto*>> grupos;
+    if(dividido->hijos.empty()){
+        for (int i = 0; i < dividido->valores.size(); i++){
+            vector<punto*> m;
+            m.push_back(&dividido->valores[i]);
+            grupos.push_back(m);
+        }
+        int medidor = 0;
+        while (grupos.size() > 2){
+            float minima_distancia = -1;
+            int i_1;
+            int j_1;
+            for (int i = 0; i < grupos.size(); i++){
+                for (int j = i+1; j < grupos.size(); j++){
+                    float dist = this->distancia(grupos[i],grupos[j]);
+                    if(minima_distancia == -1 || dist < minima_distancia){
+                        minima_distancia = dist;
+                        i_1 = i;
+                        j_1 = j;
+                    }
+                }
+            }
+            for (int k = 0; k < grupos[j_1].size(); k++){
+                grupos[i_1].push_back(grupos[j_1][k]);
+            }
+            grupos.erase(grupos.begin()+j_1);
+        }
+        for (auto i:grupos[0]){
+            part1->valores.push_back(*i);
+            this->actualizar(part1,nullptr);
+        }
+        for (auto i:grupos[1]){
+            part2->valores.push_back(*i);
+            this->actualizar(part2,nullptr);
+        }
+    }
+    else{
+        vector<vector<int>> grupos_indice;
+        int indic = 0;
+        for (auto i:dividido->hijos){
+            vector<punto*> m;
+            vector<int> n;
+            m.push_back(i->centro);
+            n.push_back(indic);
+            grupos.push_back(m);
+            grupos_indice.push_back(n);
+            indic++;
+        }
+        while (grupos.size() > 2){
+            float minima_distancia = -1;
+            int i_1;
+            int j_1;
+            for (int i = 0; i < grupos.size(); i++){
+                for (int j = i+1; j < grupos.size(); j++){
+                    float dist = this->distancia(grupos[i],grupos[j]);
+                    if(minima_distancia == -1 || dist < minima_distancia){
+                        minima_distancia = dist;
+                        i_1 = i;
+                        j_1 = j;
+                    }
+                }
+            }
+            for (int k = 0; k < grupos[j_1].size(); k++){
+                grupos[i_1].push_back(grupos[j_1][k]);
+                grupos_indice[i_1].push_back(grupos_indice[j_1][k]);
+            }
+            grupos.erase(grupos.begin()+j_1);
+            grupos_indice.erase(grupos_indice.begin()+j_1);
+        }
+        for (auto i:grupos_indice[0]){
+            part1->hijos.push_back(dividido->hijos[i]);
+            dividido->hijos[i]->padre = part1;
+            this->actualizar(part1,dividido->hijos[i]);
+        }
+        for (auto i:grupos_indice[1]){
+            part2->hijos.push_back(dividido->hijos[i]);
+            dividido->hijos[i]->padre = part2;
+            this->actualizar(part2,dividido->hijos[i]);
+        }
+    }
+}
+ostream& operator << (ostream &o,const m_tree_nodo &p)
+{
+    if(p.hijos.empty()){
+        for (auto i:p.valores){
+            o << p.centro->nombre << " -> " << i.nombre <<";\n";
+        }
+    }
+    else{
+        for (auto i:p.hijos){
+            o << p.centro->nombre << " -> " << i->centro->nombre <<";\n";
+        }
+        for (auto i:p.hijos){
+            if(i!=nullptr)
+                o << (*i);
+        }
+    }
+    return o;
+}
+void m_tree_nodo::vecinos_mas_cercanos(punto* buscado, float distancia, int cantidad){
+    queue<m_tree_nodo*> buscadores;
+    vector<pair<float,punto>> respuestas;
+    buscadores.push(this);
+    while (!buscadores.empty()){
+        m_tree_nodo* analizador = buscadores.front();
+        buscadores.pop();
+        if(!analizador->hijos.empty()){
+            vector<m_tree_nodo*> dentro;
+            vector<m_tree_nodo*> fuera;
+            for (auto i:analizador->hijos){
+                float dist = this->distancia(i->centro,buscado);
+                dist = dist - i->radio;
+                if(distancia > 0){
+                    if(distancia >= dist){
+                        dentro.push_back(i);
+                    }
+                    else{
+                        fuera.push_back(i);
+                    }
+                }
+                else if(dist <= 0){
+                    dentro.push_back(i);
+                }
+                else{
+                    fuera.push_back(i);
+                }
+            }
+            if(!dentro.empty()){
+                for (auto i:dentro)
+                    buscadores.push(i);
+            }
+            else{
+                for (auto i:fuera)
+                    buscadores.push(i);
+            }
+        }
+        else{
+            for (auto i:analizador->valores){
+                if(buscado->nombre != i.nombre){
+                    float dist = this->distancia(&i,buscado);
+                    if(distancia > 0){
+                        if(distancia >= dist)
+                            respuestas.push_back({dist,i});
+                    }
+                    else{
+                        respuestas.push_back({dist,i});
+                    }
+                }
+            }
+        }
+    }
+    if(respuestas.empty()){
+        cout<<"No hay vecino cercano en dicho rango"<<endl;
+    }
+    else{
+        sort(respuestas.begin(),respuestas.end(),comparar);
+        for (int i = 0; i < cantidad; i++){
+            cout<<respuestas[i].second.nombre<<endl;
+        }
     }
 }
 m_tree_nodo::~m_tree_nodo()
